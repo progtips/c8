@@ -8,6 +8,54 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [activeButton, setActiveButton] = useState(null)
 
+  const handleParse = async () => {
+    if (!url.trim()) {
+      alert('Пожалуйста, введите URL статьи')
+      return
+    }
+
+    setLoading(true)
+    setActiveButton('parse')
+    setResult('')
+
+    try {
+      console.log('Отправка запроса на парсинг:', url)
+      const response = await fetch('/api/parse', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      })
+
+      console.log('Ответ получен, статус:', response.status)
+
+      let data
+      try {
+        data = await response.json()
+        console.log('Данные получены:', data)
+      } catch (jsonError) {
+        const text = await response.text()
+        console.error('Ошибка парсинга JSON:', jsonError, 'Текст ответа:', text)
+        setResult(`Ошибка: Не удалось распарсить ответ сервера. Статус: ${response.status}\nТекст: ${text}`)
+        return
+      }
+
+      if (!response.ok) {
+        setResult(`Ошибка (${response.status}): ${data.error || 'Неизвестная ошибка'}`)
+        return
+      }
+
+      // Форматируем JSON для красивого отображения
+      setResult(JSON.stringify(data, null, 2))
+    } catch (error) {
+      console.error('Ошибка при парсинге:', error)
+      setResult(`Ошибка при парсинге: ${error.message}\n\nПроверьте консоль браузера для подробностей.`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = async (action) => {
     if (!url.trim()) {
       alert('Пожалуйста, введите URL статьи')
@@ -68,6 +116,36 @@ export default function Home() {
               disabled={loading}
             />
           </div>
+        </div>
+
+        {/* Кнопка парсинга */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Парсинг статьи:
+          </h2>
+          <button
+            onClick={handleParse}
+            disabled={loading}
+            className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              activeButton === 'parse' && loading
+                ? 'bg-orange-600 text-white'
+                : activeButton === 'parse'
+                ? 'bg-orange-500 text-white shadow-lg'
+                : 'bg-orange-500 hover:bg-orange-600 text-white hover:shadow-md'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {loading && activeButton === 'parse' ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Парсинг...
+              </span>
+            ) : (
+              'Парсить статью'
+            )}
+          </button>
         </div>
 
         {/* Кнопки действий */}
@@ -156,10 +234,20 @@ export default function Home() {
             Результат:
           </h2>
           <div className="min-h-[200px] p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-            {result ? (
-              <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-                {result}
+            {loading ? (
+              <div className="text-gray-400 dark:text-gray-500 text-center py-8">
+                <div className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Обработка запроса...</span>
+                </div>
               </div>
+            ) : result ? (
+              <pre className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap font-mono text-sm overflow-x-auto">
+                {result}
+              </pre>
             ) : (
               <div className="text-gray-400 dark:text-gray-500 text-center py-8">
                 Результат появится здесь после выбора действия
